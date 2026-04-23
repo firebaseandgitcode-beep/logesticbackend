@@ -4,6 +4,21 @@ const verifyToken = require('../middleware/verifyToken')
 
 router.use(verifyToken)
 
+function normalizeVehicleNumber(value) {
+  return String(value || '').toUpperCase().replace(/\s+/g, '')
+}
+
+async function findDuplicateVehicle(userId, vehicleNumber, exceptId = null) {
+  const normalized = normalizeVehicleNumber(vehicleNumber)
+  const snap = await db.collection('vehicles')
+    .where('userId', '==', userId)
+    .get()
+
+  return snap.docs.find(doc =>
+    doc.id !== exceptId && normalizeVehicleNumber(doc.data().vehicleNumber) === normalized
+  )
+}
+
 // GET /vehicles
 router.get('/', async (req, res) => {
   try {
@@ -28,9 +43,18 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'vehicleNumber is required' })
     }
 
+    const normalized = normalizeVehicleNumber(vehicleNumber)
+
+    // Duplicate check — vehicle number must be unique per account
+    const dup = await findDuplicateVehicle(req.userId, normalized)
+    if (dup) {
+      return res.status(409).json({ error: `Vehicle ${normalized} already exists` })
+    }
+
     const now = new Date().toISOString()
     const data = {
       ...req.body,
+      vehicleNumber: normalized,
       userId: req.userId,
       createdAt: now,
       updatedAt: now,
@@ -59,6 +83,20 @@ router.put('/:id', async (req, res) => {
     // Prevent overwriting ownership fields
     delete updates.userId
     delete updates.createdAt
+
+    if ('vehicleNumber' in updates) {
+      const normalized = normalizeVehicleNumber(updates.vehicleNumber)
+      if (!normalized) {
+        return res.status(400).json({ error: 'vehicleNumber is required' })
+      }
+
+      const dup = await findDuplicateVehicle(req.userId, normalized, req.params.id)
+      if (dup) {
+        return res.status(409).json({ error: `Vehicle ${normalized} already exists` })
+      }
+
+      updates.vehicleNumber = normalized
+    }
 
     await ref.update(updates)
     const updated = await ref.get()
