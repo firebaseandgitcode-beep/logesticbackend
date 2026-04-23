@@ -19,8 +19,16 @@ function signAdminToken(payload) {
   )
 }
 
+function signStaffToken(payload) {
+  return jwt.sign(
+    { ...payload, role: 'staff' },
+    secret(),
+    { expiresIn: THIRTY_DAYS }
+  )
+}
+
 function verifyToken(token) {
   return jwt.verify(token, secret())
 }
 
-module.exports = { signUserToken, signAdminToken, verifyToken }
+module.exports = { signUserToken, signAdminToken, signStaffToken, verifyToken }
