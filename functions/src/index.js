@@ -7,9 +7,12 @@ const { db } = require('./lib/admin')
 const app = express()
 
 const ALLOWED_ORIGINS = [
-  'https://mylogestic.web.app',
-  'https://mylogestic-admin.web.app',
-  'https://mylogestic-app.web.app',
+  'https://mylogestic1.web.app',
+  'https://mylogestic1.firebaseapp.com',
+  'https://mylogestic1-admin.web.app',
+  'https://mylogestic1-admin.firebaseapp.com',
+  'https://mylogestic1-app.web.app',
+  'https://mylogestic1-app.firebaseapp.com',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:8081',
@@ -35,7 +38,7 @@ app.use('/management', require('./routes/management'))
 app.get('/health', (_, res) => res.json({ status: 'ok', ts: new Date().toISOString() }))
 app.use((_, res) => res.status(404).json({ error: 'Not found' }))
 
-// ─── Seed default admin on first cold start ───────────────────────────────────
+// ─── Seed default admin on first cold start (v2) ─────────────────────────────
 async function seedDefaultAdmin() {
   try {
     const snap = await db.collection('admins').limit(1).get()
@@ -64,6 +67,6 @@ module.exports.app = app
 
 // Firebase Function export
 exports.api = onRequest(
-  { region: 'us-central1', timeoutSeconds: 60, memory: '256MiB' },
+  { region: 'us-central1', timeoutSeconds: 60, memory: '256MiB', invoker: 'public' },
   app
 )

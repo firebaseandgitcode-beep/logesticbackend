@@ -245,4 +245,41 @@ router.put('/password', verifyToken, async (req, res) => {
   }
 })
 
+// GET /auth/me
+router.get('/me', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role === 'user') {
+      const doc = await db.collection('users').doc(req.userId).get()
+      if (!doc.exists) return res.status(404).json({ error: 'User not found' })
+      const user = doc.data()
+      delete user.passwordHash
+      return res.json({
+        user: {
+          id: doc.id,
+          ...user,
+        },
+      })
+    }
+
+    if (req.user.role === 'staff') {
+      const doc = await db.collection('management').doc(req.user.uid).get()
+      if (!doc.exists) return res.status(404).json({ error: 'Staff not found' })
+      const staff = doc.data()
+      delete staff.passwordHash
+      return res.json({
+        user: {
+          id: doc.id,
+          ...staff,
+          ownerId: req.user.ownerId,
+        },
+      })
+    }
+
+    return res.status(403).json({ error: 'Access denied' })
+  } catch (err) {
+    console.error('me error:', err)
+    return res.status(500).json({ error: 'Failed to fetch current user.' })
+  }
+})
+
 module.exports = router
